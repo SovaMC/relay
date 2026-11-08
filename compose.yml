@@ -1,5 +1,6 @@
 services:
   relay:
+    image: sova/relay
     build:
       context: .
       target: relay
@@ -22,6 +23,7 @@ services:
       - sova
 
   relay-site:
+    image: sova/relay-site
     build:
       context: .
       target: site
