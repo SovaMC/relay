@@ -25,6 +25,7 @@ type SessionHandlerConfig struct {
 	Dialer raknet.UpstreamDialer
 	// SelectTarget maps a Connect's connect.v1 target to an address; nil rejects targeted Connects.
 	SelectTarget func(ctx context.Context, kind, value string) (string, error)
+	TargetName   func(kind, value string) string
 	Device       *device.Profile // nil keeps the client's claimed device
 	OnDisconnect func(DisconnectInfo)
 	// ConnectProgress receives the join's live stage and pack download progress; a zero stage
@@ -75,6 +76,7 @@ func NewSessionHandler(cfg SessionHandlerConfig) (*SessionHandler, error) {
 		transfers:    transfers,
 		onDisconnect: cfg.OnDisconnect,
 		selectTarget: selectTarget,
+		targetName:   cfg.TargetName,
 		dialTarget:   dial,
 		device:       cfg.Device,
 		logger:       logger,

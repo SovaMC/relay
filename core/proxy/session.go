@@ -40,6 +40,7 @@ type sessionServer struct {
 	onDisconnect func(DisconnectInfo)
 	onNetwork    func(NetworkObservation)
 	selectTarget func(ctx context.Context, kind, value string) (string, error) // nil rejects targeted Connects
+	targetName   func(kind, value string) string
 	dialTarget   func(ctx context.Context, address string) (*resolvedUpstreamTarget, error)
 	device       *device.Profile // nil keeps the client's claimed device
 	delay        *PacketDelay
@@ -209,6 +210,12 @@ func (server *sessionServer) prepare(
 		address, err := server.selectTarget(ctx, target.Kind, target.Value)
 		if err != nil {
 			return plan, nil, err
+		}
+		if server.targetName != nil {
+			if name := server.targetName(target.Kind, target.Value); name != "" {
+				downstream.identity.DisplayName = name
+				downstream.clientData.ThirdPartyName = name
+			}
 		}
 		downstream.resolve = func(ctx context.Context) (*resolvedUpstreamTarget, error) {
 			return server.dialTarget(ctx, address)
