@@ -1,0 +1,13 @@
+.git
+target
+target-*
+.local
+.worktrees
+.claude
+.superpowers
+reports
+web/site/pkg
+**/node_modules
+*.log
+*.exe
+.env
