@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Replay</title>
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+canvas { display: block; width: 100%; height: 100%; }
+</style>
+<canvas id="game" aria-label="Replay"></canvas>
+<script type="module">
+import init, { Page, Carriers, BrowserInput, SoundSource, sound_bank_filename, sound_bank_header_bytes, sound_bank_prefix_bytes, manifest_limit } from "./pkg/web_client.js";
+import { boundedBytes, downloadCarriers, canvasEdges, pageLifecycle } from "./edges.mjs";
+import { openSoundBank } from "./audio.mjs";
+
+const ticketPattern = /^[a-z][a-z0-9]{15}$/;
+const relay = "https://" + location.hostname + ":8443";
+const assets = new URL("assets/", location.href);
+
+let page;
+let game;
+let parentOrigin = "*";
+let joined = false;
+let playing = false;
+let finished = false;
+let relayConnected;
+const connected = new Promise((resolve) => { relayConnected = resolve; });
+
+function notify(type, error) {
+  window.parent.postMessage({ type, error }, parentOrigin);
+}
+
+function finish(error) {
+  if (finished) return;
+  finished = true;
+  game?.disconnect();
+  notify("replay-end", error);
+}
+
+function observe(json) {
+  const event = JSON.parse(json);
+  if (event.state === "connected") relayConnected();
+  if (event.state === "joining") joined = true;
+  if (event.state === "disconnected" && joined) finish();
+  if (event.state === "refused" || event.state === "retry_exhausted" || event.error) finish(event.error);
+  if (joined && !playing && event.connect && !event.connect.stage) {
+    playing = true;
+    notify("replay-playing");
+  }
+}
+
+async function prepare(input) {
+  const manifestResponse = await fetch(new URL("manifest.json", assets), { credentials: "omit" });
+  if (!manifestResponse.ok) throw new Error("Delivery manifest unavailable");
+  const manifest = JSON.parse(new TextDecoder().decode(await boundedBytes(manifestResponse, manifest_limit(), false)));
+  let carriers = new Carriers(JSON.stringify(manifest));
+  let audio;
+  try {
+    await downloadCarriers(carriers, manifest, assets);
+    const prepared = carriers;
+    carriers = null;
+    const identity = crypto.getRandomValues(new BigInt64Array(1))[0] || 1n;
+    try {
+      const bank = await openSoundBank(new URL(sound_bank_filename(), assets), sound_bank_header_bytes(), sound_bank_prefix_bytes);
+      audio = new SoundSource(bank.prefix, bank.total, bank.source);
+    } catch {
+      audio = undefined;
+    }
+    const sound = audio;
+    audio = undefined;
+    return prepared.boot("#game", input, identity, sound);
+  } finally { carriers?.free(); audio?.free(); }
+}
+
+function receiveTicket() {
+  return new Promise((resolve) => {
+    window.addEventListener("message", function receive(event) {
+      if (event.source !== window.parent || event.data?.type !== "replay" || !ticketPattern.test(event.data.ticket)) return;
+      window.removeEventListener("message", receive);
+      parentOrigin = event.origin;
+      resolve(event.data.ticket);
+    });
+  });
+}
+
+try {
+  await init();
+  const input = new BrowserInput();
+  const audio = {
+    resume: () => game?.resume_audio() || Promise.resolve(),
+    suspend: () => game?.suspend_audio() || Promise.resolve(),
+  };
+  const stop = canvasEdges(document.getElementById("game"), input, audio);
+  pageLifecycle(input, audio, () => page, () => {
+    stop(); game?.free(); input.free(); page?.free();
+  });
+  page = new Page(relay, observe);
+  game = await prepare(input);
+  await connected;
+  const ticket = receiveTicket();
+  notify("replay-ready");
+  const value = await ticket;
+  if (!finished) game.join(page, `${value}:19132`);
+} catch (error) { finish(error.message); }
+</script>
+</html>
