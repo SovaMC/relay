@@ -103,7 +103,8 @@ func (session *webSession) newHandler(account *authcache.Account) (*proxy.Sessio
 		Account:         account,
 		Logger:          session.relay.logger,
 		Dialer:          session.relay.dialer,
-		SelectTarget:    selectTarget,
+		SelectTarget:    session.relay.selectTarget,
+		TargetName:      session.relay.targetName,
 		Device:          session.device,
 		ConnectProgress: session.setConnect,
 	})
@@ -145,6 +146,9 @@ func (session *webSession) SignIn() error {
 	defer session.mu.Unlock()
 	if session.closed {
 		return net.ErrClosed
+	}
+	if session.relay.replays() {
+		return errReplayOnly
 	}
 	if session.play != nil {
 		return errSessionBusy

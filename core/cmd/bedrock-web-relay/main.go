@@ -24,6 +24,7 @@ func main() {
 	flag.StringVar(&cfg.CertificateFile, "tls-cert", "", "PEM certificate chain path")
 	flag.StringVar(&cfg.KeyFile, "tls-key", "", "PEM private key path")
 	origins := flag.String("origins", "", "comma-separated allowed page origins; empty requires relay host")
+	target := flag.String("target", "", "fixed replay server address; joins require a replay ticket host")
 	corelog.LevelFlag(flag.CommandLine, &level)
 	flag.Parse()
 	logger := corelog.New(os.Stderr, "bedrock-web-relay", level)
@@ -36,7 +37,7 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	relay := webrelay.New(webrelay.Config{AllowedOrigins: allowed, Logger: logger})
+	relay := webrelay.New(webrelay.Config{AllowedOrigins: allowed, Logger: logger, Target: strings.TrimSpace(*target)})
 	defer relay.Close()
 	go relay.Run(ctx)
 	if err := relay.Serve(ctx, cfg); err != nil {

@@ -36,6 +36,7 @@ var (
 type Config struct {
 	AllowedOrigins []string
 	Logger         *slog.Logger
+	Target         string
 }
 
 // Relay owns bounded in-memory accounts and transport connections. Close erases the accounts.
@@ -67,7 +68,7 @@ func New(cfg Config) *Relay {
 		cfg.Logger = slog.Default()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Relay{cfg: cfg, logger: cfg.Logger, dialer: newUpstreamDialer(false), ctx: ctx, cancel: cancel,
+	return &Relay{cfg: cfg, logger: cfg.Logger, dialer: newUpstreamDialer(cfg.Target != ""), ctx: ctx, cancel: cancel,
 		sessions: make(map[*webSession]struct{}), tokens: make(map[string]resumeBearer), perIP: make(map[netip.Addr]int),
 		connections: make(map[netip.Addr]int), limiters: make(map[netip.Addr]*clientLimiter)}
 }
