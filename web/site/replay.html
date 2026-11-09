@@ -30,6 +30,16 @@ function notify(type, error) {
   window.parent.postMessage({ type, error }, parentOrigin);
 }
 
+function stage(name) {
+  window.parent.postMessage({ type: "replay-stage", stage: name }, parentOrigin);
+}
+
+function within(promise, ms, message) {
+  let timer;
+  const deadline = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); });
+  return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
+}
+
 function finish(error) {
   if (finished) return;
   finished = true;
@@ -84,6 +94,7 @@ function receiveTicket() {
 }
 
 try {
+  stage("engine");
   await init();
   const input = new BrowserInput();
   const audio = {
@@ -95,12 +106,16 @@ try {
     stop(); game?.free(); input.free(); page?.free();
   });
   page = new Page(relay, observe);
+  stage("assets");
   game = await prepare(input);
-  await connected;
+  stage("relay");
+  await within(connected, 20_000, "Relay connection timed out");
   const ticket = receiveTicket();
   notify("replay-ready");
-  const value = await ticket;
+  const value = await within(ticket, 20_000, "Replay ticket timed out");
+  stage("joining");
   if (!finished) game.join(page, `${value}:19132`);
+  setTimeout(() => { if (!playing) finish("Replay join timed out"); }, 45_000);
 } catch (error) { finish(error.message); }
 </script>
 </html>
