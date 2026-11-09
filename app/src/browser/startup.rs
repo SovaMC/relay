@@ -51,10 +51,11 @@ pub(super) fn install(
     let hand_geometry = render_model::ViewmodelGeometry::from_runtime(&entities, &artwork);
     let icons = Arc::new(startup.icons);
     network::install_vanilla_item_assets(&entities, &icons);
+    let equipment_catalog = startup.equipment;
     let (equipment, artwork, geometries) =
         client_presentation::presentation::equipment::EquipmentRuntime::build(
             Arc::clone(&entities),
-            None,
+            equipment_catalog.clone(),
             Arc::clone(&icons),
             Some(Arc::clone(&startup.world)),
             None,
@@ -106,7 +107,7 @@ pub(super) fn install(
         },
     )
     .map_err(anyhow::Error::msg)?;
-    ui.set_equipment_catalog(None);
+    ui.set_equipment_catalog(equipment_catalog.clone());
     ui.set_gui_models(&startup.world, &entities)?;
     let catalog = network::PackUiCatalog(
         ui.pack_catalog_base()
@@ -127,7 +128,7 @@ pub(super) fn install(
     let weather = WeatherTextureAssets::default();
     let mut runtime = UiRuntime::new(0);
     runtime.set_item_fuel_catalog(Arc::clone(&entities));
-    runtime.set_food_catalog(None);
+    runtime.set_food_catalog(equipment_catalog);
     runtime.set_lang_catalog(Arc::new(startup.language));
     let network = NetworkHandle::<network::resource_packs::PackApplication>::disconnected();
     let movement = MovementTicker::with_epoch_publisher(network.physics_epoch_publisher());

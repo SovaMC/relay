@@ -40,7 +40,7 @@ pub fn startup_carriers() -> impl Iterator<Item = &'static Carrier> {
 
 /// The required delivery set plus supported optional artwork, from the canonical table.
 fn delivery_carriers() -> impl Iterator<Item = &'static Carrier> {
-    startup_carriers().chain([&carriers::FONT, &carriers::AUDIO])
+    startup_carriers().chain([&carriers::FONT, &carriers::AUDIO, &carriers::EQUIPMENT])
 }
 
 impl DeliveryManifest {
@@ -177,6 +177,18 @@ impl MemoryCarriers {
             .map(Arc::new)
     }
 
+    /// Decodes the optional armor and attachable catalog pinned to the delivered entity carrier;
+    /// without it worn armor is not drawn and held items use sprites, as on native.
+    fn equipment(
+        &self,
+        entities: &RuntimeEntityAssets,
+    ) -> Option<Arc<crate::RuntimeEquipmentCatalog>> {
+        crate::RuntimeEquipmentCatalog::decode(self.read(&carriers::EQUIPMENT).ok()?)
+            .ok()
+            .filter(|equipment| entities.carrier_identity() == Some(equipment.entity_blob_sha256()))
+            .map(Arc::new)
+    }
+
     /// Verifies size and SHA-256 before publishing bytes; failed replacements retain old data.
     pub fn insert(&mut self, name: &str, bytes: Vec<u8>) -> Result<(), DeliveryError> {
         let entry = self
@@ -253,6 +265,7 @@ impl MemoryCarriers {
             Ok(StartupCarriers {
                 audio: self.audio(),
                 font: self.font(),
+                equipment: self.equipment(&entities),
                 world: Arc::new(world),
                 item_facts,
                 atmosphere: Arc::new(atmosphere),
@@ -285,6 +298,7 @@ impl MemoryCarriers {
 pub struct StartupCarriers {
     pub audio: Option<Arc<crate::RuntimeAudioCatalog>>,
     pub font: Option<Arc<crate::RuntimeFontCatalog>>,
+    pub equipment: Option<Arc<crate::RuntimeEquipmentCatalog>>,
     pub world: Arc<RuntimeAssets>,
     pub item_facts: Arc<crate::facts::ItemFacts>,
     pub atmosphere: Arc<RuntimeAtmosphereAssets>,
