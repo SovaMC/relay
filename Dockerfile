@@ -25,6 +25,7 @@ RUN tar -xzf /tmp/binaryen.tar.gz -C /opt && mv /opt/binaryen-${BINARYEN} /opt/b
 COPY --from=web /bundle /bundle
 RUN /opt/binaryen/bin/wasm-opt -Oz --strip-debug --strip-producers \
         /bundle/pkg/web_client_bg.wasm -o /bundle/pkg/web_client_bg.wasm \
+    && rm /bundle/index.html /bundle/launcher.mjs \
     && find /bundle -type f -size +1k ! -name '*.mcbesnd' -exec gzip -9 -k {} + \
     && for gz in $(find /bundle -name '*.gz'); do \
         [ $(stat -c %s "$gz") -lt $(( $(stat -c %s "${gz%.gz}") * 9 / 10 )) ] || rm "$gz"; \
