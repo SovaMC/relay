@@ -44,7 +44,7 @@ function finish(error) {
   if (finished) return;
   finished = true;
   game?.disconnect();
-  notify("replay-end", error);
+  notify("replay-end", playing ? undefined : error);
 }
 
 function observe(json) {
