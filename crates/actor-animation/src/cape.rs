@@ -75,7 +75,7 @@ impl Drop for CapePreparationQueue {
         {
             let (_, idle) = mpsc::channel();
             let receiver = std::mem::replace(&mut self.receiver, Mutex::new(idle));
-            rayon::spawn(move || drop((entries, queued, cache, receiver)));
+            crate::detach(move || drop((entries, queued, cache, receiver)));
         }
     }
 }
@@ -104,7 +104,7 @@ impl CapePreparationQueue {
             false
         });
         if !retired.is_empty() {
-            rayon::spawn(move || drop(retired));
+            crate::detach(move || drop(retired));
         }
     }
 
@@ -143,7 +143,7 @@ impl CapePreparationQueue {
         let queued = std::mem::take(&mut self.queued);
         let cancelled = Arc::clone(&self.cancelled);
         let sender = self.sender.clone();
-        rayon::spawn(move || {
+        crate::detach(move || {
             let _span =
                 tracing::info_span!("actor.cape_prepare_batch", sources = queued.len()).entered();
             let mut sources = Vec::with_capacity(queued.len());

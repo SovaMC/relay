@@ -62,6 +62,8 @@ mod boat;
 mod cape;
 pub use cape::CapePreparationQueue;
 mod clock;
+mod detach;
+use detach::detach;
 pub mod custom_emotes;
 pub use custom_emotes::{CustomEmotePose, sample_custom_emote};
 mod evaluation;
